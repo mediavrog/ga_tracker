@@ -1,4 +1,4 @@
-module GATracking
+module GAControllers
   module TrackingController
 
     def ga_tracker
@@ -16,8 +16,8 @@ module GATracking
     def ga_params
       # domain specific stuff
       domain_name = (request.env["SERVER_NAME"].nil? || request.env["SERVER_NAME"].blank?) ? "" : request.env["SERVER_NAME"]
-      referer = request.env['HTTP_REFERER']
-      path = request.env["REQUEST_URI"]
+      referral = request.env['HTTP_REFERER'] || ''
+      path = request.env["REQUEST_URI"] || ''
 
       # Capture the first three octects of the IP address and replace the forth
       # with 0, e.g. 124.455.3.123 becomes 124.455.3.0
@@ -28,7 +28,7 @@ module GATracking
 
       {
           :utmhn => CGI.escape(domain_name),
-          :utmr => CGI.escape(referer),
+          :utmr => CGI.escape(referral),
           :utmp => CGI.escape(path),
           :utmip => ip,
           :utmcc => '__utma%3D999.999.999.999.999.1%3B',

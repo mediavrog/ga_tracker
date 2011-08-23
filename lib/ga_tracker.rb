@@ -1,6 +1,6 @@
 require 'open-uri'
 
-class GA::Tracker
+class GATracker
 
   def initialize(params, use_ssl=false)
     @utm_params = extend_with_default_params(params)
@@ -8,12 +8,15 @@ class GA::Tracker
   end
 
   def track
+
     utm_url = @utm_location + "?" + @utm_params.to_query
 
     puts "--------sending request to GA-----------------------"
     puts utm_url
-    #open(utm_url, "User-Agent" => request.env["HTTP_USER_AGENT"],
-    #     "Header" => ("Accepts-Language: " + request.env["HTTP_ACCEPT_LANGUAGE"]))
+    open(utm_url)
+
+    # reset events / custom variables here
+    @utm_params.delete(:utme)
   end
 
   def track_event(category, action, label=nil, value=nil)
@@ -26,8 +29,12 @@ class GA::Tracker
     track
   end
 
-  def set_custom_var(index, name, value, scope=nil)
+  def set_custom_variable(index, name, value, scope=nil)
     @utm_params[:utme].set_custom_variable(index, name, value, scope)
+  end
+
+  def unset_custom_variable(index)
+    @utm_params[:utme].unset_custom_variable(index)
   end
 
   class << self
@@ -49,7 +56,6 @@ class GA::Tracker
                              :utmn => rand(0x7fffffff).to_s,
                              :utmac => GATracker.account_id
                          })
-    params
   end
 
 end

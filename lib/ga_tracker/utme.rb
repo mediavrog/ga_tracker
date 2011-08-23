@@ -23,21 +23,25 @@ class GATracker::Utme
     @event.to_s + @custom_variables.to_s
   end
 
+  alias_method :to_param, :to_s
+
   class << self
     def parse(args)
+      return self.new if args.nil?
+
       case args.class
         when String
           utma_obj = self.from_string(args)
-        when GATracker::Utma
+        when self
           utma_obj = args
         else
-          raise ArgumentError('Cannot parse objects other than of type String or GATracker::Utma')
+          raise ArgumentError
       end
       utma_obj
     end
 
     def from_string(str)
-      raise NotImplementedError("Would like to parse #{str}, but no one implemented this so far")
+      raise NotImplementedError
     end
   end
 
