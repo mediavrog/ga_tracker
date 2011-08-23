@@ -2,44 +2,45 @@ require 'cgi'
 require 'digest'
 require 'open-uri'
 
-require 'ga_tracker/utme'
-
 class GATracker
 
-  attr_accessor :request, :params
+  attr_accessor :params, :request, :visitor_id
 
   def initialize(request, params, use_ssl=false)
-    @request = request.dup
-    @params = params.dup
-    @utm_location = (use_ssl ? 'https://ssl' : 'http://www') + UTM_GIF_LOCATION
+    self.request = request.dup
+    self.params = params.dup
+    self.utm_location = (use_ssl ? 'https://ssl' : 'http://www') + UTM_GIF_LOCATION
+    self.utm_params = utm_query_params
   end
 
   def set_custom_var(index, name, value, scope=nil)
     # update a custom var parameter
+    utm_params[:utme].set_custom_variable(index, name, value, scope)
   end
 
   def track_event(category, action, label=nil, value=nil)
-    @utm_params = utm_query_params
-
-    # add/modify event parameter
-
+    # update a custom var parameter
+    utm_params[:utme].set_event(category, action, label, value)
 
     # make google request
-    request_google @utm_params
+    request_google utm_params
   end
 
   def track_page_view(path=nil)
-    @utm_params = utm_query_params
-    
-    request_google @utm_params
+    request_google utm_params
   end
 
   protected
+
+  attr_accessor :utm_location, :utm_params
 
   # Generate a visitor id for this hit.
   # If there is a visitor id in the cookie, use that, otherwise
   # use the guid if we have one, otherwise use a random number.
   def get_visitor_id(guid, account, user_agent, cookie)
+    # if there was a visitor id set manually, use it
+    return visitor_id unless (visitor_id.nil? || visitor_id.empty?)
+
     # If there is a value in the cookie, don't change it.
     return cookie unless (cookie.nil? || cookie.empty?)
 
@@ -60,14 +61,15 @@ class GATracker
 
   private
 
-  # Tracker version.
-  VERSION = "4.4sh"
+  # seems to be the current version
+  # just search for 'utmwv' in http://www.google-analytics.com/ga.js
+  VERSION = "5.1.5"
   COOKIE_NAME = "__utmmobile"
   COOKIE_PATH = "/"
 
   # Two years in seconds.
   COOKIE_PERSISTENCE = 63072000
-  UTM_GIF_LOCATION = "google-analytics.com/__utm.gif"
+  UTM_GIF_LOCATION = ".google-analytics.com/__utm.gif"
 
   # The last octect of the IP address is removed to anonymize the user.
   def get_ip(remote_address)
@@ -79,7 +81,7 @@ class GATracker
   end
 
   def utm_query_params
-    timestamp = Time.now.utc.strftime("%H%M%S").to_i
+    #timestamp = Time.now.utc.strftime("%H%M%S").to_i
 
     domain_name = (request.env["SERVER_NAME"].nil? || request.env["SERVER_NAME"].blank?) ? "" : request.env["SERVER_NAME"]
 
@@ -98,18 +100,19 @@ class GATracker
     user_agent = (request.env["HTTP_USER_AGENT"].nil? || request.env["HTTP_USER_AGENT"].empty?) ? "" : request.env["HTTP_USER_AGENT"]
 
     # Try and get visitor cookie from the request.
-    cookie = cookies[COOKIE_NAME]
+    cookie = nil #cookies[COOKIE_NAME]
 
     visitor_id = get_visitor_id(request.env["HTTP_X_DCMGUID"], account, user_agent, cookie)
 
     # Always try and add the cookie to the response.
-    request.cookies[COOKIE_NAME] = { :value => visitor_id, :expires => COOKIE_PERSISTENCE.to_i + timestamp, :path => COOKIE_PATH }
+    #request.cookies[COOKIE_NAME] = { :value => visitor_id, :expires => COOKIE_PERSISTENCE.to_i + timestamp, :path => COOKIE_PATH }
 
     # Construct the gif hit url params
     {
         :utmwv => VERSION,
         :utmn => rand(0x7fffffff).to_s,
         :utmhn => CGI.escape(domain_name),
+        :utme => UTME.new,
         :utmr => CGI.escape(document_referer),
         :utmp => CGI.escape(document_path),
         :utmac => account,
@@ -126,10 +129,12 @@ class GATracker
   def request_google(params)
     utm_url = @utm_location + "?" + params.to_query
 
-    #puts "--------sending request to GA-----------------------"
-    #puts utmurl
-    open(utm_url, "User-Agent" => request.env["HTTP_USER_AGENT"],
-         "Header" => ("Accepts-Language: " + request.env["HTTP_ACCEPT_LANGUAGE"]))
+    puts "--------sending request to GA-----------------------"
+    puts utm_url
+    #open(utm_url, "User-Agent" => request.env["HTTP_USER_AGENT"],
+    #     "Header" => ("Accepts-Language: " + request.env["HTTP_ACCEPT_LANGUAGE"]))
   end
 
 end
+
+require 'ga_tracker/utme'

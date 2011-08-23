@@ -6,6 +6,6 @@ Gem::Specification.new do |s|
   s.description = "Allows you to do server-side tracking for Google Analytics either using the given class or as a controller mix-in."
   s.authors     = ["Maik Vlcek"]
   s.email       = 'maik@mediavrog.net'
-  s.files       = ["lib/ga_tracker.rb"]
+  s.files       = ['lib/ga_tracker.rb', 'lib/ga_tracker/utme.rb']
   s.homepage    = 'https://github.com/mediavrog/ga_tracker'
 end
