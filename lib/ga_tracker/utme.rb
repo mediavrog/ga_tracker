@@ -1,4 +1,4 @@
-class GATracker::UTME
+class GATracker::Utme
 
   def initialize
     @custom_variables = CustomVariables.new
@@ -21,6 +21,24 @@ class GATracker::UTME
 
   def to_s
     @event.to_s + @custom_variables.to_s
+  end
+
+  class << self
+    def parse(args)
+      case args.class
+        when String
+          utma_obj = self.from_string(args)
+        when GATracker::Utma
+          utma_obj = args
+        else
+          raise ArgumentError('Cannot parse objects other than of type String or GATracker::Utma')
+      end
+      utma_obj
+    end
+
+    def from_string(str)
+      raise NotImplementedError("Would like to parse #{str}, but no one implemented this so far")
+    end
   end
 
   private
