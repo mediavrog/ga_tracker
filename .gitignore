@@ -11,11 +11,7 @@ config/boot.rb
 config/database.yml
 config/environment.rb
 config/environments/
-config/initializers/backtrace_silencers.rb
-config/initializers/inflections.rb
-config/initializers/mime_types.rb
-config/initializers/secret_token.rb
-config/initializers/session_store.rb
+config/initializers/*
 config/locales/
 config/routes.rb
 db/
