@@ -2,9 +2,7 @@ module GAControllers
   module TrackingController
 
     def ga_tracker
-      @ga_tracker ||= begin
-        GATracker.new(ga_params)
-      end
+      @ga_tracker ||= GATracker.new(ga_params)
     end
 
     protected
@@ -35,7 +33,5 @@ module GAControllers
           :utmvid => visitor_uuid
       }
     end
-
-
   end
 end
