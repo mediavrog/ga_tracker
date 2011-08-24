@@ -26,22 +26,70 @@ class GATracker::Utme
   alias_method :to_param, :to_s
 
   class << self
+
+    @@regex_event = /5\((\w+)\*(\w+)(\*(\w+))?\)(\((\d+)\))?/
+    @@regex_custom_variables = /8\(([^\)]*)\)9\(([^\)]*)\)(11\(([^\)]*)\))?/
+    @@regex_custom_variable_value = /((\d)!)?(\w+)/
+
     def parse(args)
       return self.new if args.nil?
-
-      case args.class
+      case args
         when String
-          utma_obj = self.from_string(args)
+          return self.from_string(args)
         when self
-          utma_obj = args
+          return args
         else
-          raise ArgumentError
+          raise ArgumentError, "Could parse argument neither as String nor GATracker::Utme"
       end
-      utma_obj
     end
 
     def from_string(str)
-      raise NotImplementedError
+      utme = self.new
+
+      # parse event
+      str.gsub!(@@regex_event) do |match|
+        utme.set_event($1, $2, $4, $6)
+        ''
+      end
+
+      # parse custom variables
+      str.gsub!(@@regex_custom_variables) do |match|
+        custom_vars = {}
+        match_names, match_values, match_scopes = $1, $2, $4
+
+        names = match_names.to_s.split('*')
+        values = match_values.to_s.split('*')
+        scopes = match_scopes.to_s.split('*')
+
+        raise ArgumentError, "Each custom variable must have a value defined." if names.length != values.length
+
+        names.each_with_index do |raw_name, i|
+          match_data = raw_name.match(@@regex_custom_variable_value)
+          slot, name = (match_data[2] || i+1).to_i, match_data[3]
+          custom_vars[slot] = {:name => name}
+        end
+
+        values.each_with_index do |raw_value, i|
+          match_data = raw_value.match(@@regex_custom_variable_value)
+          slot, value = (match_data[2] || i+1).to_i, match_data[3]
+          custom_vars[slot][:value] = value
+        end
+
+        scopes.each_with_index do |raw_scope, i|
+          match_data = raw_scope.match(@@regex_custom_variable_value)
+          slot, scope = (match_data[2] || i+1).to_i, match_data[3]
+          # silently ignore scope if there's no corresponding custom variable
+          custom_vars[slot][:scope] = scope if custom_vars[slot]
+        end
+
+        # finally set all the gathered custom vars
+        custom_vars.each do |key, custom_var|
+          utme.set_custom_variable(key, custom_var[:name], custom_var[:value], custom_var[:scope])
+        end
+        ''
+      end
+
+      utme
     end
   end
 
@@ -57,14 +105,7 @@ class GATracker::Utme
     end
   end
 
-  CustomVariable = Struct.new(:name, :value, :opt_scope) do
-    def to_s
-      bang = "#{slot != 1 ? "#{slot}!" : ''}"
-      output = "8(#{bang}#{name})9(#{bang}#{value})"
-      output += "11(#{bang}#{opt_scope})" if opt_scope
-      output
-    end
-  end
+  CustomVariable = Struct.new(:name, :value, :opt_scope)
 
   class CustomVariables
 
@@ -75,16 +116,19 @@ class GATracker::Utme
     end
 
     def set_custom_variable(slot, custom_variable)
-      return false if not @@valid_keys.include?(slot)
+      raise ArgumentError, "Cannot set a slot other than #{@@valid_keys}. Given #{slot}" if not @@valid_keys.include?(slot)
       @contents[slot] = custom_variable
     end
 
     def unset_custom_variable(slot)
-      return false if not @@valid_keys.include?(slot)
+      raise ArgumentError, "Cannot unset a slot other than #{@@valid_keys}. Given #{slot}" if not @@valid_keys.include?(slot)
       @contents.delete(slot)
     end
 
     # follows google custom variable format
+    #
+    # 8(NAMES)9(VALUES)11(SCOPES)
+    #
     # best explained by examples
     #
     # 1)
